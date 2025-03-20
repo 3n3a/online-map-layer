@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Interactive Map Data Loader with Multiple Service Options</title>
+    <!-- Leaflet CSS v1.9.4 -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        height: 100%;
+        width: 100%;
+      }
+      /* Control panel styling */
+      #controls {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 10px;
+        border-radius: 4px;
+        max-width: 300px;
+        font-family: sans-serif;
+        font-size: 14px;
+      }
+      #zipFileList {
+        margin-top: 10px;
+      }
+      table {
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 4px 8px;
+      }
+      label {
+        display: block;
+        margin-top: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="controls">
+      <h3>Load Layer</h3>
+      <div>
+        <label for="fileInput">Upload JSON/ZIP File:</label>
+        <input type="file" id="fileInput" accept=".json,.zip" />
+      </div>
+      <hr />
+      <div>
+        <label for="serviceType">Select Service Type:</label>
+        <select id="serviceType">
+          <option value="default">GeoJSON/ZIP</option>
+          <option value="WFS">WFS-Service URL</option>
+        </select>
+      </div>
+      <div>
+        <label for="urlInput">Or enter URL:</label>
+        <input
+          type="text"
+          id="urlInput"
+          placeholder="https://example.com/file.json, .zip, or service URL"
+          style="width: 100%"
+        />
+        <button id="urlBtn">Load</button>
+      </div>
+      <div id="zipFileList"></div>
+    </div>
+    <div id="map"></div>
+
+    <!-- Leaflet JS v1.9.4 -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- proj4js v2.15.0 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.15.0/proj4.js"></script>
+    <!-- JSZip (latest version from CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <script>
+      const DEFAULT_SRS = "EPSG:2056"; // Because we are in switzerland...
+      const MAP_TARGET_SRS = "EPSG:4326"; // Map is in "GPS" Coordinate Format
+      const WEB_MAP_SRS = "EPSG:3857"; // Used by Google Maps, OpenStreetmap etc.
+
+      // Define the EPSG:2056 projection (Swiss LV95)
+      proj4.defs(
+        DEFAULT_SRS,
+        "+proj=somerc +lat_0=46.95240555555556 +lon_0=7.439583333333333 +k_0=1 +x_0=2600000 +y_0=1200000 +ellps=bessel +towgs84=674.374,15.056,405.346,0,0,0,0 +units=m +no_defs"
+      );
+
+      // Initialize map with OSM tiles
+      var map = L.map("map").setView([46.8, 8.2], 8);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(map);
+
+      // Global overlays object to hold layers by name
+      var overlays = {};
+      var layerControl = L.control.layers(null, overlays).addTo(map);
+
+      function chunk(arr, size = 2) {
+        // Split the array into chunks of the given size
+        const chunks = [];
+        for (let i = 0; i < arr.length; i += size) {
+            chunks.push(arr.slice(i, i + size));
+        }
+        return chunks;
+      }
+
+      function convertCoords(coords, srcProjection = undefined) {
+        coords = coords.filter((coord) => !!coord)
+        if (coords.length > 2) {
+          const chunks = chunk(coords, 2);
+          const processed = chunks.map((chunk) => convertCoords(chunk, srcProjection))
+          return processed;
+        }
+        if (!srcProjection) {
+          console.log("Assuming default srcProjection", DEFAULT_SRS, coords)
+          srcProjection = DEFAULT_SRS;
+        }
+        var converted = proj4(srcProjection, MAP_TARGET_SRS, coords);
+        return converted;
+      }
+
+      // Generate popup HTML table from properties
+      function generatePopupContent(properties) {
+        var html = "<table>";
+        for (var key in properties) {
+          if (key !== "GlobalId") {
+            html +=
+              "<tr><th>" + key + "</th><td>" + properties[key] + "</td></tr>";
+          }
+        }
+        if (properties.GlobalId) {
+          html +=
+            "<tr><td colspan='2'><strong>GlobalId: " +
+            properties.GlobalId +
+            "</strong></td></tr>";
+        }
+        html += "</table>";
+        return html;
+      }
+
+      // Add GeoJSON layer (overwrite if layer with same name exists)
+      function addGeoJsonLayer(
+        geojsonData,
+        layerName,
+        srcProjection = undefined
+      ) {
+        const srcProjectionFromGeoJson = (geojsonData.crs && geojsonData.crs.properties && geojsonData.crs.properties.name) ? geojsonData.crs.properties.name : undefined;
+
+        // process and convert all coordinates
+        geojsonData.features = geojsonData.features.map((feature) => {
+          const newFeature = feature;
+          var coords = newFeature.geometry.coordinates;
+          var srcProjection_ = newFeature.geometry.srcProjection || srcProjectionFromGeoJson || srcProjection;
+          var convertedLatLng = convertCoords(coords, srcProjection_);
+          if (newFeature.geometry.type === "Polygon") {
+            // Needs to be wrapped in additional array
+            convertedLatLng = [convertedLatLng];
+          }
+          newFeature.geometry.coordinates = convertedLatLng;
+          return newFeature;
+        })
+        geojsonData.crs = undefined;
+
+        console.log(geojsonData)
+
+        if (overlays[layerName]) {
+          map.removeLayer(overlays[layerName]);
+          layerControl.removeLayer(overlays[layerName]);
+        }
+        var geoLayer = L.geoJSON(geojsonData, {
+          onEachFeature: function (feature, layer) {
+            if (feature.properties) {
+              layer.bindPopup(generatePopupContent(feature.properties));
+            }
+          },
+        });
+        overlays[layerName] = geoLayer;
+        geoLayer.addTo(map);
+        layerControl.addOverlay(geoLayer, layerName);
+        console.log("Added New Layer...");
+      }
+
+      // Process JSON content (assumed to be GeoJSON)
+      function processJsonContent(
+        jsonStr,
+        layerName,
+        srcProjection = undefined
+      ) {
+        try {
+          var data = JSON.parse(jsonStr);
+          addGeoJsonLayer(data, layerName, srcProjection);
+        } catch (error) {
+          alert("Error parsing JSON: " + error);
+        }
+      }
+
+      // Process ZIP content and list JSON files inside
+      function processZipContent(arrayBuffer, layerName) {
+        JSZip.loadAsync(arrayBuffer).then(function (zip) {
+          var jsonFiles = [];
+          zip.forEach(function (relativePath, zipEntry) {
+            if (zipEntry.name.toLowerCase().endsWith(".json")) {
+              jsonFiles.push(zipEntry.name);
+            }
+          });
+          if (jsonFiles.length === 0) {
+            alert("No JSON files found in the zip archive.");
+            return;
+          }
+          var fileListDiv = document.getElementById("zipFileList");
+          fileListDiv.innerHTML =
+            "<p>Select a JSON file from the ZIP archive (<strong>" +
+            layerName +
+            "</strong>):</p>";
+          var select = document.createElement("select");
+          jsonFiles.forEach(function (fname) {
+            var option = document.createElement("option");
+            option.value = fname;
+            option.textContent = fname;
+            select.appendChild(option);
+          });
+          var loadBtn = document.createElement("button");
+          loadBtn.textContent = "Load Selected File";
+          loadBtn.onclick = function () {
+            var selectedFile = select.value;
+            zip
+              .file(selectedFile)
+              .async("string")
+              .then(function (fileContent) {
+                processJsonContent(fileContent, layerName);
+                fileListDiv.innerHTML = "";
+              });
+          };
+          fileListDiv.appendChild(select);
+          fileListDiv.appendChild(loadBtn);
+        });
+      }
+
+      // Process WFS response (XML/GML) and handle both point and polygon geometries
+      function processWFSContent(xmlStr, layerName) {
+        var parser = new DOMParser();
+        var xmlDoc = parser.parseFromString(xmlStr, "text/xml");
+        var features = [];
+        var srcProjection = undefined;
+        // Get all featureMember elements
+        var featureMembers = xmlDoc.getElementsByTagNameNS(
+          "*",
+          "featureMember"
+        );
+        if (featureMembers.length === 0) {
+          alert("No featureMember elements found in WFS response.");
+          return;
+        }
+        for (var i = 0; i < featureMembers.length; i++) {
+          var member = featureMembers[i];
+          // Use the first element child as the feature element (works regardless of tag name)
+          var featureElem = member.firstElementChild;
+          if (!featureElem) continue;
+          var properties = {};
+          // Loop through child elements; if an element has geometry children, skip it for properties.
+          for (var j = 0; j < featureElem.children.length; j++) {
+            var child = featureElem.children[j];
+            if (
+              child.getElementsByTagNameNS("*", "Point").length > 0 ||
+              child.getElementsByTagNameNS("*", "posList").length > 0
+            ) {
+              continue;
+            }
+            properties[child.localName] = child.textContent.trim();
+          }
+
+          var geometry = null;
+          // Attempt to get a Point geometry first
+          var point = featureElem.getElementsByTagNameNS("*", "Point")[0];
+          if (point) {
+            var coordElem =
+              point.getElementsByTagNameNS("*", "pos")[0] ||
+              point.getElementsByTagNameNS("*", "coordinates")[0];
+            if (coordElem) {
+              var coordText = coordElem.textContent.trim();
+              var coords = coordText.split(/[\s,]+/).map(parseFloat);
+              // Retrieve source projection from the Point's srsName (if available)
+              srcProjection = point.getAttribute("srsName") || srcProjection || DEFAULT_SRS;
+              geometry = {
+                type: "Point",
+                coordinates: coords.flat(),
+              };
+            }
+          } else {
+            // If no Point, try to get polygon rings from <posList> elements
+            var posLists = featureElem.getElementsByTagNameNS("*", "posList");
+            if (posLists.length > 0) {
+              var rings = [];
+              // For each posList element, create a ring (an array of coordinate pairs)
+              for (var k = 0; k < posLists.length; k++) {
+                var posElem = posLists[k];
+                var posText = posElem.textContent.trim();
+                var nums = posText.split(/[\s,]+/).map(parseFloat);
+                var ring = [];
+                // Group numbers in pairs: [x, y]
+                for (var m = 0; m < nums.length; m += 2) {
+                  var pair = [nums[m], nums[m + 1]];
+                  // Try to get the srsName from the posList or fallback to parent elements
+                  srcProjection =
+                    posElem.getAttribute("srsName") ||
+                    posElem.parentNode.getAttribute("srsName") ||
+                    srcProjection ||
+                    DEFAULT_SRS;
+                  ring.push(pair);
+                }
+                rings.push(ring);
+              }
+              // Create a Polygon geometry if at least one ring is found.
+              // we only support LineString and Polygon
+              const lineString = featureElem.getElementsByTagNameNS("*", "LineString");
+              const geometryType = lineString.length > 0 ? "LineString" : "Polygon"
+              if (rings.length > 0) {
+                geometry = {
+                  type: geometryType,
+                  coordinates: rings.flat(3),
+                };
+              }
+            }
+          }
+          // If no geometry was extracted, skip this feature.
+          if (!geometry) continue;
+          // Create the GeoJSON feature.
+          var geoFeature = {
+            type: "Feature",
+            geometry: geometry,
+            properties: properties,
+          };
+          features.push(geoFeature);
+        }
+        if (features.length === 0) {
+          alert("No features extracted from the WFS response.");
+          return;
+        }
+        var geojson = {
+          type: "FeatureCollection",
+          features: features,
+        };
+        addGeoJsonLayer(geojson, layerName, srcProjection);
+      }
+
+      // Process WFS Capabilities and create a GetFeature request
+      function processWFSCapabilities(xmlStr, layerName, originalUrl) {
+        var parser = new DOMParser();
+        var xmlDoc = parser.parseFromString(xmlStr, "text/xml");
+
+        // Find OperationsMetadata then GetFeature operation
+        var operationsMetadata = xmlDoc.getElementsByTagNameNS(
+          "*",
+          "OperationsMetadata"
+        );
+        if (!operationsMetadata || operationsMetadata.length === 0) {
+          alert("No OperationsMetadata found in capabilities.");
+          return;
+        }
+        var operations = operationsMetadata[0].getElementsByTagNameNS(
+          "*",
+          "Operation"
+        );
+        var getFeatureOp = null;
+        for (var i = 0; i < operations.length; i++) {
+          if (operations[i].getAttribute("name") === "GetFeature") {
+            getFeatureOp = operations[i];
+            break;
+          }
+        }
+        if (!getFeatureOp) {
+          alert("No GetFeature operation found in capabilities.");
+          return;
+        }
+
+        // Extract highest available version from the version parameter
+        var version = "1.0.0"; // default fallback
+        var params = getFeatureOp.getElementsByTagNameNS("*", "Parameter");
+        var versionParam = null;
+        for (var i = 0; i < params.length; i++) {
+          if (params[i].getAttribute("name").toLowerCase() === "version") {
+            versionParam = params[i];
+            break;
+          }
+        }
+        if (versionParam) {
+          var values = versionParam.getElementsByTagNameNS("*", "Value");
+          var versionList = [];
+          for (var i = 0; i < values.length; i++) {
+            versionList.push(values[i].textContent.trim());
+          }
+          if (versionList.length > 0) {
+            // Sort numerically (assuming versions can be parsed as floats)
+            versionList.sort(function (a, b) {
+              return parseFloat(a) - parseFloat(b);
+            });
+            version = versionList[versionList.length - 1];
+          }
+        }
+
+        // Extract srsName parameter (prefer EPSG:3857)
+        var srsName = DEFAULT_SRS; // default
+        var srsParam = null;
+        for (var i = 0; i < params.length; i++) {
+          if (params[i].getAttribute("name").toLowerCase() === "srsname") {
+            srsParam = params[i];
+            break;
+          }
+        }
+        if (srsParam) {
+          var srsValues = srsParam.getElementsByTagNameNS("*", "Value");
+          var srsList = [];
+          for (var i = 0; i < srsValues.length; i++) {
+            srsList.push(srsValues[i].textContent.trim());
+          }
+          if (srsList.indexOf(DEFAULT_SRS) === -1 && srsList.length > 0) {
+            srsList.sort();
+            srsName = srsList[0];
+          }
+        }
+
+        // Extract typeName from wfs:FeatureType > wfs:Name (first occurrence)
+        var typeName = "";
+        var featureTypes = xmlDoc.getElementsByTagNameNS("*", "FeatureType");
+        if (featureTypes.length > 0) {
+          var nameElem = featureTypes[0].getElementsByTagNameNS("*", "Name")[0];
+          if (nameElem) {
+            typeName = nameElem.textContent.trim();
+          }
+        }
+        if (!typeName) {
+          alert("No typeName found in capabilities.");
+          return;
+        }
+
+        // Construct GetFeature URL from the original URL (remove existing query parameters)
+        var baseUrl = originalUrl.split("?")[0];
+        var getFeatureUrl =
+          baseUrl +
+          "?service=WFS&request=GetFeature&version=" +
+          encodeURIComponent(version) +
+          "&srsName=" +
+          encodeURIComponent(srsName) +
+          "&typeName=" +
+          encodeURIComponent(typeName);
+
+        // Fetch the GetFeature response
+        fetch(getFeatureUrl)
+          .then(function (response) {
+            if (response.ok) {
+              return response.text();
+            } else {
+              throw new Error("GetFeature request failed.");
+            }
+          })
+          .then(function (text) {
+            processWFSContent(text, layerName);
+          })
+          .catch(function (error) {
+            alert("Error fetching GetFeature: " + error);
+          });
+      }
+
+      // Handle file upload
+      document
+        .getElementById("fileInput")
+        .addEventListener("change", function (event) {
+          var file = event.target.files[0];
+          if (!file) return;
+          var layerName = file.name;
+          var reader = new FileReader();
+          reader.onload = function (e) {
+            var result = e.target.result;
+            if (file.name.toLowerCase().endsWith(".zip")) {
+              processZipContent(result, layerName);
+            } else if (file.name.toLowerCase().endsWith(".json")) {
+              processJsonContent(result, layerName);
+            } else {
+              alert("Unsupported file type.");
+            }
+          };
+          if (file.name.toLowerCase().endsWith(".zip")) {
+            reader.readAsArrayBuffer(file);
+          } else {
+            reader.readAsText(file);
+          }
+        });
+
+      // Handle URL input and service types
+      document.getElementById("urlBtn").addEventListener("click", function () {
+        var url = document.getElementById("urlInput").value.trim();
+        if (!url) return;
+        var serviceType = document.getElementById("serviceType").value;
+        var layerName = url.split("/").pop().split("?")[0] || "remoteLayer";
+
+        fetch(url)
+          .then(function (response) {
+            var contentType = response.headers.get("Content-Type") || "";
+            var srcProjection = undefined;
+            if (url.toLowerCase().includes("data.sbb.ch")) {
+              // sbb data exports have coordinates in this format
+              console.log("Setting Projection for SBB Data Url");
+              srcProjection = MAP_TARGET_SRS;
+            }
+            if (serviceType === "WFS" && contentType.includes("text/xml")) {
+              // First, assume a GetCapabilities response; then create and execute a GetFeature request.
+              return response.text().then(function (text) {
+                console.log(url.toLowerCase())
+                if (url.toLowerCase().includes("getcapabilities")) {
+                  console.log("URL Includes 'GetCapabilities'. Processing first...")
+                  processWFSCapabilities(text, layerName, url);
+                } else {
+                  // do not need to first extract into
+                  processWFSContent(text, layerName);
+                }
+              });
+            } else {
+              // Default branch (GeoJSON/ZIP)
+              if (
+                url.toLowerCase().endsWith(".zip") ||
+                contentType.includes("application/zip")
+              ) {
+                return response.arrayBuffer().then(function (buffer) {
+                  processZipContent(buffer, layerName);
+                });
+              } else if (
+                url.toLowerCase().endsWith(".json") ||
+                contentType.includes("application/json")
+              ) {
+                return response.text().then(function (text) {
+                  processJsonContent(text, layerName, srcProjection);
+                });
+              } else {
+                return response.text().then(function (text) {
+                  try {
+                    JSON.parse(text);
+                    processJsonContent(text, layerName, srcProjection);
+                  } catch (e) {
+                    alert("URL did not return valid JSON or ZIP content.");
+                  }
+                });
+              }
+            }
+          })
+          .catch(function (error) {
+            console.error(error)
+            alert("Error fetching URL: " + error);
+          });
+      });
+    </script>
+  </body>
+</html>
