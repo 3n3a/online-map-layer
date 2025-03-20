@@ -130,8 +130,12 @@
           console.log("Assuming default srcProjection", DEFAULT_SRS, coords)
           srcProjection = DEFAULT_SRS;
         }
-        var converted = proj4(srcProjection, MAP_TARGET_SRS, coords);
-        return converted;
+        try {
+          var converted = proj4(srcProjection, MAP_TARGET_SRS, coords);
+          return converted;
+        } catch (e) {
+          console.error("Error while trying to convert coords", e, coords, srcProjection)
+        }
       }
 
       // Generate popup HTML table from properties
@@ -166,6 +170,7 @@
           const newFeature = feature;
           var coords = newFeature.geometry.coordinates;
           var srcProjection_ = newFeature.geometry.srcProjection || srcProjectionFromGeoJson || srcProjection;
+          coords = coords.flat(3);
           var convertedLatLng = convertCoords(coords, srcProjection_);
           if (newFeature.geometry.type === "Polygon") {
             // Needs to be wrapped in additional array
