@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Online Map Layer</title>
+    <meta name="description" content="Online Map Layer is a dynamic web mapping application that seamlessly integrates geographic data from various sources—such as GeoJSON files, ZIP archives, and WFS endpoints. It features on-the-fly coordinate conversion, robust layer management, and a user-friendly interface for visualizing multi-source geodata." />
+    <meta name="keywords" content="GIS, Web Mapping, GeoData, WFS, GeoJSON, ZIP, Coordinate Conversion, Leaflet, OGC-Client, Proj4, Data Integration, GeoFusion, Map Explorer">
+    <meta name="author" content="3n3a" />
+    <link rel="stylesheet" href="/node_modules/leaflet/dist/leaflet.css" />
+  </head>
+  <body>
+    <div id="controls">
+      <h3>Load Layer</h3>
+      <div>
+        <label for="fileInput">Upload JSON/ZIP File:</label>
+        <input type="file" id="fileInput" accept=".json,.zip" />
+      </div>
+      <hr />
+      <div>
+        <label for="serviceType">Select Service Type:</label>
+        <select id="serviceType">
+          <option value="default">GeoJSON/ZIP</option>
+          <option value="WFS">WFS-Service URL</option>
+        </select>
+      </div>
+      <div>
+        <label for="urlInput">Or enter URL:</label>
+        <input
+          type="text"
+          id="urlInput"
+          placeholder="https://example.com/file.json, .zip, or service URL"
+          style="width: 100%"
+        />
+        <button id="urlBtn">Load</button>
+      </div>
+      <div id="zipFileList"></div>
+      <div id="featureTypeList"></div>
+    </div> 
+    <div id="map"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

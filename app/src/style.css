@@ -1,0 +1,38 @@
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+#map {
+  height: 100%;
+  width: 100%;
+}
+/* Control panel styling */
+#controls {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px;
+  border-radius: 4px;
+  max-width: 300px;
+  font-family: sans-serif;
+  font-size: 14px;
+}
+#zipFileList {
+  margin-top: 10px;
+}
+table {
+  border-collapse: collapse;
+}
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 4px 8px;
+}
+label {
+  display: block;
+  margin-top: 5px;
+}
