@@ -21,18 +21,59 @@ export function parseCRS(urn) {
 }
 
 // Converts coordinates from source projection to target (MAP_TARGET_SRS)
-export function convertCoords(coords, srcProjection) {
+export function convertCoords(coords, srcProjection, geometryType=undefined, flipped=false) {
+  // filter out empty coordinates
   coords = coords.filter((coord) => !!coord);
-  if (coords.length > 2) {
-    const chunks = chunk(coords, 2);
-    return chunks.map((chunk) => convertCoords(chunk, srcProjection));
+
+  geometryType = !!geometryType ? String(geometryType).toLowerCase() : undefined;
+
+  // process more than one set of coords
+  const firstElem = coords[0];
+  const firstElemIsArray = Array.isArray(firstElem)
+  if (coords.length > 2 || (firstElemIsArray && geometryType && ["linestring", "polygon", "multipoint", "multilinestring", "multipolygon"].includes(geometryType))) {
+
+    if (!firstElemIsArray) {
+      // must be a list of [ <lon>, <lat>, <lon>, <lat>, ... ]
+      const chunks = chunk(coords, 2);
+      return chunks.map((chunk) => convertCoords(chunk, srcProjection, undefined, flipped));
+    }
+
+    // assumed all these have firstElemIsArray = true
+    // documentation: https://geobgu.xyz/web-mapping/geojson-1.html (Table 7.2)
+    // spec: https://datatracker.ietf.org/doc/html/rfc7946#section-3.1
+    if (["LineString", "MultiPoint"].includes(geometryType)) {
+      // [ [<lon>, <lat>], ... ]
+      return coords.map((coord) => convertCoords(coord, srcProjection, undefined, flipped));
+    }
+    else if (["polygon", "multilinestring"].includes(geometryType)) {
+      // [ [ [<lon>, <lat>], [<lon>, <lat>], ... ], [ [<lon>, <lat>], [<lon>, <lat>], ... ], ]
+      return coords.map((coordGroup) => {
+        return coordGroup.map((coord) => convertCoords(coord, srcProjection, undefined, flipped));
+      })
+    }
+    else if (["multipolygon"].includes(geometryType)) {
+      // [ [ [ [<lon>, <lat>], [<lon>, <lat>], ... ], [ [<lon>, <lat>], [<lon>, <lat>], ... ], ], ... ]
+      return coords.map((coordParentGroup) => {
+        return coordParentGroup.map((coordGroup) => {
+          return coordGroup.map((coord) => convertCoords(coord, srcProjection, undefined, flipped));
+        })
+      })
+    } else {
+      throw new Error("no geometry type parser found for", JSON.stringify(geometryType))
+    }
   }
   if (!srcProjection) {
     console.log("Assuming default srcProjection", DEFAULT_SRS, coords);
     srcProjection = DEFAULT_SRS;
   }
   try {
-    return proj4(srcProjection, MAP_TARGET_SRS, coords);
+    const transformed = proj4(srcProjection, MAP_TARGET_SRS, coords);
+    if (flipped) {
+      console.log("flipped from", transformed, "to", [transformed[1], transformed[0]])
+      return [transformed[1], transformed[0]];
+    } else {
+      return transformed;
+    }
   } catch (e) {
     console.error("Error converting coords", e, coords, srcProjection);
   }

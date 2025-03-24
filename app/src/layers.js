@@ -8,21 +8,14 @@ export function addGeoJsonLayer(geojsonData, layerName, srcProjection) {
     geojsonData.crs?.properties?.name || undefined;
 
   // Process and convert all coordinates
+  geojsonData.bbox = geojsonData.bbox ? convertCoords(geojsonData.bbox, srcProjection || parseCRS(srcProjectionFromGeoJson), undefined, true) : undefined;
   geojsonData.features = geojsonData.features.map((feature) => {
     const newFeature = feature;
-    // fix because leaflet geojson does not support multipolygon / multistring. might lead to problemos tho...
-    newFeature.geometry.type = newFeature.geometry.type.replace("Multi", "");
     let coords = newFeature.geometry.coordinates;
     const srcProj = parseCRS(newFeature.geometry.srcProjection) ||
       srcProjection || 
       parseCRS(srcProjectionFromGeoJson);
-    // Flatten coordinates up to 3 levels
-    coords = coords.flat(5);
-    let convertedLatLng = convertCoords(coords, srcProj);
-    if (newFeature.geometry.type === "Polygon") {
-      // For polygons, wrap in an additional array
-      convertedLatLng = [convertedLatLng];
-    }
+    let convertedLatLng = convertCoords(coords, srcProj, newFeature.geometry.type);
     newFeature.geometry.coordinates = convertedLatLng;
     return newFeature;
   });
@@ -37,12 +30,32 @@ export function addGeoJsonLayer(geojsonData, layerName, srcProjection) {
   const geoLayer = L.geoJSON(geojsonData, {
     onEachFeature: function (feature, layer) {
       if (feature.properties) {
-        layer.bindPopup(generatePopupContent(feature.properties));
+        layer.bindPopup(generatePopupContent(feature.properties), {
+          closeOnEscapeKey: true,
+          interactive: true,
+        });
       }
+      layer.on("click", (event) => {
+        const layer = event.target;
+        layer.setStyle({
+          weight: 3,
+          color: '#d43900',
+          dashArray: '',
+          fillOpacity: 0.1,
+        });
+        layer.bringToFront();
+      });
+      layer.on("popupclose", (event) => {
+        const layer = event.target;
+        geoLayer.resetStyle(layer);
+      })
     },
   });
   overlays[layerName] = geoLayer;
   geoLayer.addTo(map);
   layerControl.addOverlay(geoLayer, layerName);
+  if (geojsonData.hasOwnProperty("bbox") && !!geojsonData.bbox) {
+    map.fitBounds(geojsonData.bbox, {animate: true });
+  }
   console.log("Added New Layer...");
 }
