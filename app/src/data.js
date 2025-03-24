@@ -79,7 +79,7 @@ export async function loadWFSLayer(url, layerName) {
     featureTypeList.innerHTML = `<p>Select a Feature Type:</p>`;
 
     const select = document.createElement("select");
-    featureTypes.forEach((featureType) => {
+    featureTypes.sort((a, b) => a.title.localeCompare(b.title)).forEach((featureType) => {
       const option = document.createElement("option");
       option.value = featureType.name;
       option.textContent = featureType.title;

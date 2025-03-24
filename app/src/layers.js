@@ -16,7 +16,7 @@ export function addGeoJsonLayer(geojsonData, layerName, srcProjection) {
       srcProjectionFromGeoJson ||
       srcProjection;
     // Flatten coordinates up to 3 levels
-    coords = coords.flat(3);
+    coords = coords.flat(5);
     let convertedLatLng = convertCoords(coords, srcProj);
     if (newFeature.geometry.type === "Polygon") {
       // For polygons, wrap in an additional array

@@ -12,8 +12,14 @@ export function chunk(arr, size = 2) {
   return chunks;
 }
 
+function parseCRS(urn) {
+  const match = urn.match(/^(?:urn:ogc:def:crs:EPSG::|EPSG:)?(\d+)$/);
+  return match ? `EPSG:${match[1]}` : null;
+}
+
 // Converts coordinates from source projection to target (MAP_TARGET_SRS)
 export function convertCoords(coords, srcProjection) {
+  srcProjection = parseCRS(srcProjection);
   coords = coords.filter((coord) => !!coord);
   if (coords.length > 2) {
     const chunks = chunk(coords, 2);
