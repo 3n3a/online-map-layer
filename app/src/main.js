@@ -101,6 +101,7 @@ function setupMoreInfo() {
   let moreInfoHTML = html;
   moreInfoHTML = moreInfoHTML.replaceAll("<table>", "<div class=\"table-responsive\"><table>");
   moreInfoHTML = moreInfoHTML.replaceAll("</table>", "</table></div>");
+  moreInfoHTML = moreInfoHTML.replaceAll("<a", "<a target=\"_blank\"")
   moreInfo.innerHTML = `
   <div class="x-button">
     <a href="#">x</a>
