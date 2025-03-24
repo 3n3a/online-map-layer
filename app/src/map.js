@@ -27,7 +27,6 @@ export let layerControl = null;
 
 export function setupMap(elementId) {
   map = L.map(elementId, {
-    preferCanvas: true,
     center: [46.8, 8.2],
     zoom: 8,
     zoomControl: false,

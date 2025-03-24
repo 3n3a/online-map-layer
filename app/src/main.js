@@ -1,6 +1,7 @@
 import "./style.css";
 import { processJsonContent, processZipContent, loadWFSLayer } from "./data.js";
 import { MAP_TARGET_SRS, setupMap } from "./map.js";
+import { html } from '../README.md';
 
 function handleFileInputChange(event) {
   const file = event.target.files[0];
@@ -25,12 +26,18 @@ function handleFileInputChange(event) {
 }
 
 async function handleLoadButtonClick() {
+  const urlBtn = document.getElementById("urlBtn");
+  urlBtn.innerText = 'Loading...';
+  urlBtn.disabled = true;
+
   const url = document.getElementById("urlInput").value.trim();
   if (!url) return;
   const serviceType = document.getElementById("serviceType").value;
   const layerName = url.split("/").pop().split("?")[0] || "remoteLayer";
   if (serviceType === "WFS") {
     await loadWFSLayer(url, layerName);
+    urlBtn.innerText = 'Load';
+    urlBtn.disabled = false;
     return;
   }
   // Default: handle as GeoJSON/ZIP
@@ -70,6 +77,10 @@ async function handleLoadButtonClick() {
     .catch((error) => {
       console.error(error);
       alert("Error fetching URL: " + error);
+    })
+    .finally(() => {
+      urlBtn.innerText = 'Load';
+      urlBtn.disabled = false;
     });
 }
 
@@ -85,5 +96,17 @@ function setupEventListeners() {
     .addEventListener("click", handleLoadButtonClick);
 }
 
+function setupMoreInfo() {
+  const moreInfo = document.getElementById("more-info");
+  moreInfo.innerHTML = `
+  <div class="x-button">
+    <a href="#">x</a>
+  </div>
+  <div class="more-info-container">${html}</div>
+  `
+}
+
 setupMap("map");
 setupEventListeners()
+
+setupMoreInfo();

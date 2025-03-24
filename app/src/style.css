@@ -36,3 +36,36 @@ label {
   display: block;
   margin-top: 5px;
 }
+.popup-more-info {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100lvw;
+  height: 100lvh;
+  z-index: 9999;
+  background: white;
+  opacity: 0;
+  visibility: hidden;
+}
+.popup-more-info:target {
+  opacity: 1;
+  visibility: visible;
+}
+.popup-more-info .x-button {
+  display: flex;
+  flex-direction: row;
+  justify-content: end;
+}
+.popup-more-info > .x-button > a {
+  padding-top: .5em;
+  padding-right: .5em;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 2em;
+  text-decoration: none;
+}
+.more-info-container {
+  display: flex;
+  flex-direction: column;
+  padding: 1em;
+  overflow: scroll;
+}

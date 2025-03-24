@@ -88,8 +88,14 @@ export async function loadWFSLayer(url, layerName) {
     const selectBtn = document.createElement("button");
     selectBtn.textContent = "Select Feature Type";
     selectBtn.onclick = async () => {
+      selectBtn.innerText = "Loading...";
+      selectBtn.disabled = true;
+
       const selectedFeatureType = featureTypes.find((f) => f.name === select.value);
-      loadFeatureLayer(client, selectedFeatureType)
+      await loadFeatureLayer(client, selectedFeatureType)
+
+      selectBtn.innerText = "Select Feature Type";
+      selectBtn.disabled = false;
     }
 
     if (featureTypes.length === 0) {
