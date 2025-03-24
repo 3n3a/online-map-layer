@@ -1,6 +1,6 @@
 import L from "leaflet";
 import { map, overlays, layerControl } from "./map.js";
-import { convertCoords, generatePopupContent } from "./utils.js";
+import { convertCoords, generatePopupContent, parseCRS } from "./utils.js";
 
 // Adds or replaces a GeoJSON layer on the map.
 export function addGeoJsonLayer(geojsonData, layerName, srcProjection) {
@@ -10,11 +10,12 @@ export function addGeoJsonLayer(geojsonData, layerName, srcProjection) {
   // Process and convert all coordinates
   geojsonData.features = geojsonData.features.map((feature) => {
     const newFeature = feature;
+    // fix because leaflet geojson does not support multipolygon / multistring. might lead to problemos tho...
+    newFeature.geometry.type = newFeature.geometry.type.replace("Multi", "");
     let coords = newFeature.geometry.coordinates;
-    const srcProj =
-      newFeature.geometry.srcProjection ||
-      srcProjectionFromGeoJson ||
-      srcProjection;
+    const srcProj = parseCRS(newFeature.geometry.srcProjection) ||
+      srcProjection || 
+      parseCRS(srcProjectionFromGeoJson);
     // Flatten coordinates up to 3 levels
     coords = coords.flat(5);
     let convertedLatLng = convertCoords(coords, srcProj);

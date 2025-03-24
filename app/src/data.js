@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import { WfsEndpoint } from "@camptocamp/ogc-client";
 import { addGeoJsonLayer } from "./layers.js";
+import { DEFAULT_SRS } from "./map.js";
 
 // Process JSON content (assumed GeoJSON)
 export function processJsonContent(jsonStr, layerName, srcProjection) {
@@ -51,15 +52,24 @@ export function processZipContent(arrayBuffer, layerName) {
   });
 }
 
+/**
+ * 
+ * @param {WfsEndpoint} client 
+ * @param {import("@camptocamp/ogc-client").WfsFeatureTypeBrief} featureType 
+ */
 async function loadFeatureLayer(client, featureType) {
+  const fullFeatureType = await client.getFeatureTypeFull(featureType.name);
+  const crs = fullFeatureType.defaultCrs || fullFeatureType.otherCrs[0] || DEFAULT_SRS;
   const featureUrl = client.getFeatureUrl(featureType.name, {
     asJson: true,
-
+    outputCrs: crs,
   });
+  console.log(fullFeatureType)
+
   const res = await fetch(featureUrl);
   const geojson = await res.json();
 
-  addGeoJsonLayer(geojson, featureType.title);
+  addGeoJsonLayer(geojson, featureType.title, crs);
 }
 
 // Load a WFS layer using the ogc-client library.
