@@ -1,7 +1,7 @@
 import "./style.css";
 import { processJsonContent, processZipContent, loadWFSLayer } from "./data.js";
 import { MAP_TARGET_SRS, setupMap } from "./map.js";
-import { html } from '../README.md';
+import { html } from "../README.md";
 
 function handleFileInputChange(event) {
   const file = event.target.files[0];
@@ -27,7 +27,7 @@ function handleFileInputChange(event) {
 
 async function handleLoadButtonClick() {
   const urlBtn = document.getElementById("urlBtn");
-  urlBtn.innerText = 'Loading...';
+  urlBtn.innerText = "Loading...";
   urlBtn.disabled = true;
 
   const url = document.getElementById("urlInput").value.trim();
@@ -36,7 +36,7 @@ async function handleLoadButtonClick() {
   const layerName = url.split("/").pop().split("?")[0] || "remoteLayer";
   if (serviceType === "WFS") {
     await loadWFSLayer(url, layerName);
-    urlBtn.innerText = 'Load';
+    urlBtn.innerText = "Load";
     urlBtn.disabled = false;
     return;
   }
@@ -79,7 +79,7 @@ async function handleLoadButtonClick() {
       alert("Error fetching URL: " + error);
     })
     .finally(() => {
-      urlBtn.innerText = 'Load';
+      urlBtn.innerText = "Load";
       urlBtn.disabled = false;
     });
 }
@@ -89,28 +89,57 @@ function setupEventListeners() {
   document
     .getElementById("fileInput")
     .addEventListener("change", handleFileInputChange);
-  
+
   // Handle URL input and service type
   document
     .getElementById("urlBtn")
     .addEventListener("click", handleLoadButtonClick);
 }
 
+// Function to select the full text content of an element
+function selectElementText(el) {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 function setupMoreInfo() {
   const moreInfo = document.getElementById("more-info");
   let moreInfoHTML = html;
-  moreInfoHTML = moreInfoHTML.replaceAll("<table>", "<div class=\"table-responsive\"><table>");
+  moreInfoHTML = moreInfoHTML.replaceAll(
+    "<table>",
+    '<div class="table-responsive"><table>'
+  );
   moreInfoHTML = moreInfoHTML.replaceAll("</table>", "</table></div>");
-  moreInfoHTML = moreInfoHTML.replaceAll("<a", "<a target=\"_blank\"")
+  moreInfoHTML = moreInfoHTML.replaceAll("<a", '<a target="_blank"');
   moreInfo.innerHTML = `
   <div class="x-button">
     <a href="#">✕</a>
   </div>
   <div class="popup-content">${moreInfoHTML}</div>
-  `
+  `;
+
+  // Select all <pre> and <code> elements
+  document.querySelectorAll("code").forEach((el) => {
+    let lastTap = 0;
+
+    el.addEventListener("touchend", function (event) {
+      const currentTime = new Date().getTime();
+      const tapGap = currentTime - lastTap;
+
+      // Check if two taps occurred within 300ms
+      if (tapGap > 0 && tapGap < 300) {
+        selectElementText(el);
+        event.preventDefault(); // Prevent default double-tap zoom behavior
+      }
+      lastTap = currentTime;
+    });
+  });
 }
 
 setupMap("map");
-setupEventListeners()
+setupEventListeners();
 
 setupMoreInfo();
