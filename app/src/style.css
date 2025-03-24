@@ -1,13 +1,20 @@
+:root {
+  font-family: sans-serif;
+  font-size: 14px;
+}
+
 html,
 body {
   height: 100%;
   margin: 0;
   padding: 0;
 }
+
 #map {
   height: 100%;
   width: 100%;
 }
+
 /* Control panel styling */
 #controls {
   position: absolute;
@@ -15,57 +22,113 @@ body {
   left: 10px;
   z-index: 1000;
   background: rgba(255, 255, 255, 0.9);
-  padding: 10px;
   border-radius: 4px;
   max-width: 300px;
-  font-family: sans-serif;
-  font-size: 14px;
 }
+
 #zipFileList {
   margin-top: 10px;
 }
+
 table {
   border-collapse: collapse;
 }
+
 th,
 td {
   border: 1px solid #ccc;
   padding: 4px 8px;
 }
+
+pre,code {
+  margin: 0;
+  padding: 0;
+  font-size: .75rem;
+}
+
 label {
   display: block;
   margin-top: 5px;
 }
-.popup-more-info {
-  position: absolute;
+
+input {
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+select {
+  max-width: 100%;
+}
+
+.popup {
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100lvw;
-  height: 100lvh;
+
+  width: 100vw;
+  max-width: none;
+  height: 100%;
+  margin: 0;
+
   z-index: 9999;
   background: white;
+
   opacity: 0;
   visibility: hidden;
 }
-.popup-more-info:target {
+
+.popup:target {
   opacity: 1;
   visibility: visible;
 }
-.popup-more-info .x-button {
+
+.popup-content {
+  height: 100%;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 1em;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.x-button {
   display: flex;
   flex-direction: row;
   justify-content: end;
 }
-.popup-more-info > .x-button > a {
-  padding-top: .5em;
-  padding-right: .5em;
-  font-family: 'Courier New', Courier, monospace;
+
+.x-button > a {
+  padding-top: 0.5em;
+  padding-right: 0.5em;
+  font-family: "Courier New", Courier, monospace;
   font-size: 2em;
   text-decoration: none;
 }
-.more-info-container {
-  display: flex;
-  flex-direction: column;
+
+.expandable > * {
+  width: 100%;
+}
+
+.expandable > summary {
   padding: 1em;
-  overflow: scroll;
+
+  cursor: pointer;
+  user-select: none;
+}
+
+.expandable[open] {
+  padding: 1em;
+  padding-bottom: 1em;
+}
+
+.expandable[open] > summary {
+  padding: 0;
+  padding-bottom: 1em;
+}
+
+.expandable > summary h1,h2,h3,h4,p,span {
+  display: inline;
 }

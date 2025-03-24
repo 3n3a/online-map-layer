@@ -98,11 +98,14 @@ function setupEventListeners() {
 
 function setupMoreInfo() {
   const moreInfo = document.getElementById("more-info");
+  let moreInfoHTML = html;
+  moreInfoHTML = moreInfoHTML.replaceAll("<table>", "<div class=\"table-responsive\"><table>");
+  moreInfoHTML = moreInfoHTML.replaceAll("</table>", "</table></div>");
   moreInfo.innerHTML = `
   <div class="x-button">
     <a href="#">x</a>
   </div>
-  <div class="more-info-container">${html}</div>
+  <div class="popup-content">${moreInfoHTML}</div>
   `
 }
 
