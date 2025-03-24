@@ -104,7 +104,7 @@ function setupMoreInfo() {
   moreInfoHTML = moreInfoHTML.replaceAll("<a", "<a target=\"_blank\"")
   moreInfo.innerHTML = `
   <div class="x-button">
-    <a href="#">x</a>
+    <a href="#">✕</a>
   </div>
   <div class="popup-content">${moreInfoHTML}</div>
   `

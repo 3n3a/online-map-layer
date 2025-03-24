@@ -103,9 +103,14 @@ select {
 .x-button > a {
   padding-top: 0.5em;
   padding-right: 0.5em;
-  font-family: "Courier New", Courier, monospace;
+  font-family: sans-serif;
   font-size: 2em;
+  color: black;
   text-decoration: none;
+}
+
+.x-button > a:visited {
+  color: black;
 }
 
 .expandable > * {
