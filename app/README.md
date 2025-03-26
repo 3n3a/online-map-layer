@@ -13,6 +13,9 @@ Here are a few examples that can be loaded into the application.
 | Stadt ZH Kunstbauten Inventar | WFS          | `https://www.ogd.stadt-zuerich.ch/wfs/geoportal/Kunstbauteninventar`                                                                                                                                                       |
 | Kanton ZH OpenData            | WFS          | `https://maps.zh.ch/wfs/OGDZHWFS`                                                                                                                                                                                          |
 | Schweiz Elektrische Anlagen   | WFS          | `https://geodienste.ch/db/elektrische_anlagen_ueber_36kv_v1_0_0/deu`                                                                                                                                                       |
+| Lichtsignalanlagen Stadt Luzern | WFS | `https://map.stadtluzern.ch/server/services/OGD/lichtsignalanlage/MapServer/WFSServer` |
+| Sitzbänke Stadt Luzern | WFS | `https://map.stadtluzern.ch/server/services/OGD/sitzbank/MapServer/WFSServer` |
+| Recycling Sammelstellen Stadt Luzern | WFS | `https://map.stadtluzern.ch/server/services/OGD/sammelstelle/MapServer/WFSServer` |
 
 ## Created By
 
